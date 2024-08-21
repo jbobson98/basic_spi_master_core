@@ -151,6 +151,18 @@ initial begin
     tb_test_num = 8;
     dut_config_slave_regs(0, 4'b0010);
     dut_tx_byte(0, 8'hC14);
+    wait(tb_tx_ready == 1'b1);
+
+    /* Slave 0 Back-to-Back Transaction ----------------------------------------- */
+    tb_test_num = 9;
+    dut_config_slave_regs(0, 4'b0000);
+    dut_tx_byte(0, 8'hCDE);
+    @(posedge tb_tx_ready);
+    dut_tx_byte(0, 8'hCAD);
+    @(posedge tb_tx_ready);
+    dut_tx_byte(0, 8'hBE);
+    @(posedge tb_tx_ready);
+    dut_tx_byte(0, 8'hEF);
 
     // End of test
     wait(tb_tx_ready == 1'b1);
