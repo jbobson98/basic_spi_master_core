@@ -12,7 +12,8 @@ localparam CLK_PERIOD_NS = (1_000_000_000 / CLOCK_FREQ_HZ);
 integer tb_test_num;
 
 /* DUT Port Signals */
-localparam CLOCKS_PER_SPI_BIT = 4;
+localparam CLOCKS_PER_SPI_BIT     = 4;
+localparam SPI_CS_INACTIVE_CLOCKS = 4;
 logic tb_clk, tb_rst;
 logic tb_config_slave;
 logic [2:0] tb_slave_select;
@@ -25,7 +26,8 @@ logic [7:0] tb_spi_cs, tb_spi_mosi;
 
 /* Instantiate DUT */
 spi_master #(
-    .CLOCKS_PER_SPI_BIT(CLOCKS_PER_SPI_BIT)
+    .CLOCKS_PER_SPI_BIT(CLOCKS_PER_SPI_BIT),
+    .SPI_CS_INACTIVE_CLOCKS(SPI_CS_INACTIVE_CLOCKS)
 ) DUT (
     .i_clk(tb_clk),
     .i_rst(tb_rst),
@@ -89,18 +91,19 @@ endtask
 /* Task: Transmitt Byte */
 task dut_tx_byte(input [2:0] slave, input [7:0] tx_data);
 begin
+    //@(posedge tb_clk if (tb_tx_ready == 1)); // wait until tx done
+    wait(tb_tx_ready == 1'b1);
     @(posedge tb_clk);
     tb_slave_select  = slave;
     tb_tx_data       = tx_data;
     tb_tx_data_valid = 1'b1;
     @(posedge tb_clk);
     tb_tx_data_valid = 1'b0;
-    @(posedge tb_tx_ready); // wait until tx done
     // Todo: check read data here with asserts
 end
 endtask
 
-
+/* Run Tests */
 initial begin
     
     /* Init Dut Inputs ---------------------------------------------------------- */
@@ -123,35 +126,37 @@ initial begin
 
     /* Slave 0 TX --------------------------------------------------------------- */
     tb_test_num = 3;
-    dut_tx_byte(0, 8'hCB);
+    dut_tx_byte(0, 8'hC14);
     
     /* Slave 1 TX --------------------------------------------------------------- */
     tb_test_num = 4;
-    dut_tx_byte(1, 8'hCB);
+    dut_tx_byte(1, 8'h25);
 
     /* Slave 2 TX --------------------------------------------------------------- */
     tb_test_num = 5;
-    dut_tx_byte(2, 8'hCB);
-
+    dut_tx_byte(2, 8'h8e);
+    
     /* Slave 3 TX --------------------------------------------------------------- */
     tb_test_num = 6;
-    dut_tx_byte(3, 8'hCB);
+    dut_tx_byte(3, 8'h23);
+    wait(tb_tx_ready == 1'b1);
 
+    /* Slave 0 TX Invert CS ----------------------------------------------------- */
+    tb_test_num = 7;
+    dut_config_slave_regs(0, 4'b0001);
+    dut_tx_byte(0, 8'hC14);
+    wait(tb_tx_ready == 1'b1);
 
-    // End Test
+    /* Slave 0 TX LSB First ----------------------------------------------------- */
+    tb_test_num = 8;
+    dut_config_slave_regs(0, 4'b0010);
+    dut_tx_byte(0, 8'hC14);
+
+    // End of test
+    wait(tb_tx_ready == 1'b1);
+    #(CLK_PERIOD_NS*10);
     $finish();
 end
-
-
-
-
-
-
-
-
-
-
-
 
 
 endmodule
